@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Электронная библиотека</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+</head>
+<body> 
+    <h3>Название книги:</h3><titlebook></titlebook>
+       <h3>О книге:</h3><descriptorbook></descriptorbook>
+            <h3>Автор:</h3><authorbook></authorbook>
+                <h3>Год:</h3><yearbook></yearbook>
+  
+    
+    <h2>Список книг</h2>
+    <table class="table table-condensed table-striped table-bordered">
+        <thead><tr><th>Id</th><th>Название</th><th></th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>  
+    <script>
+        // Получение всех книг
+        function GetBooks() {
+            $.ajax({
+                url: "/api/books",
+                type: "GET",
+                contentType: "application/json",
+                success: function (books) {
+                    var rows = "";
+                    $.each(books, function (index, book) {
+                        // добавляем полученные элементы в таблицу
+                        rows += row(book);
+                    })
+                    $("table tbody").append(rows);
+                 }
+            });
+        }
+        // Получение одной книги
+        function GetBook(id) {
+            $.ajax({
+                url: "/api/books/"+id,
+                type: "GET",
+                contentType: "application/json",
+                success: function (book) {
+                    //Вставка в форму
+                    var form = document.forms["bookForm"];
+                    form.elements["id"].value = book.id;
+                    form.elements["title"].value = book.title;
+                    form.elements["description"].value = book.description;
+                    form.elements["authors"].value = book.authors;
+                    form.elements["year"].value = book.year ;                         
+                }
+            });
+        }
+        function detailBook(id) {
+            $.ajax({
+                url: "/api/books/"+id,
+                type: "GET",
+                contentType: "application/json",
+                success: function (book) {
+                    $("titlebook").empty();   
+                    $( "titlebook" ).append(book.title);
+                    $("descriptorbook").empty();
+                    $( "descriptorbook" ).append(book.description);
+                    $("authorbook").empty();
+                    $( "authorbook" ).append(book.authors);
+                    $("yearbook").empty(); 
+                    $( "yearbook" ).append(book.year);                	                
+                }
+            });
+        }
+        // Добавление пользователя
+        function CreateBook(bookTitle, bookDescription, bookAuthors, bookYear) {
+            $.ajax({
+                url: "api/books",
+                contentType: "application/json",
+                method: "POST",
+                data: JSON.stringify({
+                    title: bookTitle,
+                    description: bookDescription,
+                    authors: bookAuthors,
+                    year: bookYear
+                }),
+                success: function (book) {
+                    reset();
+                    $("table tbody").append(row(book));
+                }
+            })
+        }
+        // Изменение пользователя
+        function EditBook(bookId, bookTitle, bookDescription, bookAuthors, bookYear) {
+            $.ajax({
+                url: "api/books",
+                contentType: "application/json",
+                method: "PUT",
+                data: JSON.stringify({
+                    id: bookId,
+                    title: bookTitle,
+                    description: bookDescription,
+                    authors: bookAuthors,
+                    year: bookYear
+                }),
+                success: function (book) {
+                    reset();
+                    $("tr[data-rowid='" + book.id + "']").replaceWith(row(book));
+                }
+            })
+        }
+  
+        // сброс формы
+        function reset() {
+            var form = document.forms["bookForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+        }
+  
+        // Удаление книги
+        function DeleteBook(id) {
+            $.ajax({
+                url: "api/books/"+id,
+                contentType: "application/json",
+                method: "DELETE",
+                success: function (book) {
+                    console.log(book);
+                    $("tr[data-rowid='" + book.id + "']").remove();
+                }
+            })
+        }
+        // создание строки для таблицы
+        var row = function (book) {
+            return "<tr data-rowid='" + book.id + "'><td><h2>" + book.id + "</h2></td>" +
+                   "<td><h2>" + book.title + "</h2></td> " +
+                   "<td><a class='editLink' data-id='" + book.id + "'>Изменить</a> | "+
+                    "<a class='removeLink' data-id='" + book.id + "'>Удалить</a> |"+
+                    "<a class='getUserLink' data-id='" + book.id + "'>Подробнее</a></td></tr>"
+        }
+        // сброс значений формы
+        $("#reset").click(function (e) {
+  
+            e.preventDefault();
+            reset();
+        })
+  
+        // отправка формы
+        $("form").submit(function (e) {
+            e.preventDefault();
+            var id = this.elements["id"].value;
+            var title = this.elements["title"].value;
+            var description = this.elements["description"].value;
+            var authors = this.elements["authors"].value;
+            var year = this.elements["year"].value;
+            if (id == 0)
+                CreateBook(title, description, authors, year);
+            else
+                EditBook(id, title, description, authors, year);
+        });
+  
+        // нажимаем на ссылку Изменить
+        $("body").on("click", ".editLink", function () {
+            var id = $(this).data("id");
+            GetBook(id);
+        })
+        // нажимаем на ссылку Удалить
+        $("body").on("click", ".removeLink", function () {
+            var id = $(this).data("id");
+            DeleteBook(id);
+        })
+        //нажимаем на ссылку Подробнее          
+        $("body").on("click", ".getUserLink", function () {
+            var id = $(this).data("id");
+            detailBook(id);
+        })
+  
+        // загрузка книг
+        GetBooks();
+  
+    </script>
+    <h2>Новая книга:</h2>
+    <form name="bookForm">
+            <input type="hidden" name="id" value="0" />
+            <div class="form-group">
+                <label for="title">Название:</label>
+                <input class="form-control"  class="form-control-plaintext" name="title" />
+            </div>    
+            <div class="form-group">
+                <label for="description">Описание:</label>            
+                <textarea class="form-control"  class="form-control-plaintext" name="description"/> </textarea>
+            </div> 
+            <div class="form-group">
+                    <label for="authors">Автор:</label>
+                    <input class="form-control" class="form-control-plaintext" name="authors" />
+                </div>
+                <div class="form-group">
+                        <label for="year">Год:</label>
+                        <input class="form-control"  class="form-control-plaintext" name="year" />
+                    </div>
+                    <div class="panel-body">
+                            <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
+                            <a id="reset" class="btn btn-sm btn-primary">Сбросить</a>
+                        </div>
+        </form>
+  
+</body>
+</html>
